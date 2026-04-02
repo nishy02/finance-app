@@ -2,14 +2,13 @@ services:
   - type: web
     name: finance-app
     runtime: node
-    rootDir: finance-backend
-    buildCommand: npm install
-    startCommand: npm run start:prod
+    buildCommand: cd finance-backend && npm install
+    startCommand: cd finance-backend && npm run start:prod
     envVars:
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
-        generateValue: true   # Render auto-generates a secure random value
+        generateValue: true
       - key: JWT_EXPIRES_IN
         value: 24h
     disk:
