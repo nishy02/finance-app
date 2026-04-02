@@ -1,10 +1,5 @@
 require('dotenv').config();
 
-// In production, Render mounts a persistent disk at /data — store the DB there
-if (process.env.NODE_ENV === 'production' && !process.env.DB_PATH) {
-  process.env.DB_PATH = '/data/finance.db';
-}
-
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
