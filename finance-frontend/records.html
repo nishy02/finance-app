@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Records — FinanceApp</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Financial Records</h1>
+    <button class="btn btn-primary" id="addBtn" style="display:none" onclick="openAdd()">+ Add Record</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <div class="form-group">
+      <label>Type</label>
+      <select id="fType">
+        <option value="">All types</option>
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Category</label>
+      <input type="text" id="fCategory" placeholder="Any category">
+    </div>
+    <div class="form-group">
+      <label>From</label>
+      <input type="date" id="fFrom">
+    </div>
+    <div class="form-group">
+      <label>To</label>
+      <input type="date" id="fTo">
+    </div>
+    <div class="form-group" style="flex:0">
+      <label>&nbsp;</label>
+      <button class="btn btn-primary" onclick="loadRecords(1)">Filter</button>
+    </div>
+    <div class="form-group" style="flex:0">
+      <label>&nbsp;</label>
+      <button class="btn btn-ghost" onclick="clearFilters()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Notes</th><th id="actionsHeader"></th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody">
+          <tr><td colspan="6" style="padding:30px;text-align:center;color:var(--muted)">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<!-- Add / Edit modal -->
+<div class="modal-overlay" id="recordModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Add Record</h2>
+      <button class="modal-close" onclick="closeModal('recordModal')">×</button>
+    </div>
+    <form id="recordForm">
+      <input type="hidden" id="recordId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Amount</label>
+          <input type="number" id="fAmount" step="0.01" min="0.01" placeholder="0.00" required>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="fTypeInput" required>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" id="fCategoryInput" placeholder="e.g. Salary, Rent…" required>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="fDate" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="fNotes" placeholder="Optional description…"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('recordModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h2>Delete Record</h2>
+      <button class="modal-close" onclick="closeModal('deleteModal')">×</button>
+    </div>
+    <p style="color:var(--muted);font-size:14px">This record will be soft-deleted and removed from all views. This cannot be undone.</p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  if (!requireAuth('viewer')) throw '';
+  renderNav();
+
+  const fmt = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const canWrite  = auth.is('analyst');
+  const canDelete = auth.is('admin');
+
+  let currentPage = 1;
+  const LIMIT = 15;
+
+  // Show add button and actions column for analysts+
+  if (canWrite) document.getElementById('addBtn').style.display = '';
+  if (canWrite || canDelete) document.getElementById('actionsHeader').textContent = 'Actions';
+
+  function buildQuery(page) {
+    const p = new URLSearchParams();
+    const type     = document.getElementById('fType').value;
+    const category = document.getElementById('fCategory').value.trim();
+    const from     = document.getElementById('fFrom').value;
+    const to       = document.getElementById('fTo').value;
+    if (type)     p.set('type', type);
+    if (category) p.set('category', category);
+    if (from)     p.set('from', from);
+    if (to)       p.set('to', to);
+    p.set('page', page);
+    p.set('limit', LIMIT);
+    return p.toString();
+  }
+
+  async function loadRecords(page = 1) {
+    currentPage = page;
+    const tbody = document.getElementById('recordsBody');
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--muted)">Loading…</td></tr>';
+
+    try {
+      const data = await api('GET', `/records?${buildQuery(page)}`);
+      renderTable(data.records);
+      renderPagination(data.pagination);
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--red)">Failed to load records</td></tr>';
+    }
+  }
+
+  function renderTable(records) {
+    const tbody = document.getElementById('recordsBody');
+    if (!records.length) {
+      tbody.innerHTML = `<tr><td colspan="6">
+        <div class="empty-state"><div class="empty-icon">📋</div><p>No records found</p></div>
+      </td></tr>`;
+      return;
+    }
+    tbody.innerHTML = records.map(r => `
+      <tr>
+        <td>${r.date}</td>
+        <td><span class="badge badge-${r.type}">${r.type}</span></td>
+        <td>${r.category}</td>
+        <td class="${r.type === 'income' ? 'text-green' : 'text-red'}">${fmt(r.amount)}</td>
+        <td class="text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notes || '—'}</td>
+        <td>
+          <div class="actions">
+            ${canWrite  ? `<button class="btn btn-sm btn-ghost" onclick="openEdit(${JSON.stringify(r).replace(/"/g,'&quot;')})">Edit</button>` : ''}
+            ${canDelete ? `<button class="btn btn-sm btn-danger" onclick="openDelete(${r.id})">Delete</button>` : ''}
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderPagination({ page, limit, total }) {
+    const pages = Math.ceil(total / limit);
+    const el = document.getElementById('pagination');
+    if (pages <= 1) { el.innerHTML = `<span>${total} record${total !== 1 ? 's' : ''}</span>`; return; }
+    el.innerHTML = `
+      <span>${total} records</span>
+      <button class="btn btn-sm btn-ghost" onclick="loadRecords(${page - 1})" ${page <= 1 ? 'disabled' : ''}>‹ Prev</button>
+      <span>Page ${page} of ${pages}</span>
+      <button class="btn btn-sm btn-ghost" onclick="loadRecords(${page + 1})" ${page >= pages ? 'disabled' : ''}>Next ›</button>
+    `;
+  }
+
+  function clearFilters() {
+    ['fType','fCategory','fFrom','fTo'].forEach(id => {
+      const el = document.getElementById(id);
+      el.tagName === 'SELECT' ? (el.value = '') : (el.value = '');
+    });
+    loadRecords(1);
+  }
+
+  // ── add / edit ─────────────────────────────────────────────────────────────
+  function openAdd() {
+    document.getElementById('modalTitle').textContent = 'Add Record';
+    document.getElementById('recordId').value = '';
+    document.getElementById('recordForm').reset();
+    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+    openModal('recordModal');
+  }
+
+  function openEdit(r) {
+    document.getElementById('modalTitle').textContent = 'Edit Record';
+    document.getElementById('recordId').value    = r.id;
+    document.getElementById('fAmount').value     = r.amount;
+    document.getElementById('fTypeInput').value  = r.type;
+    document.getElementById('fCategoryInput').value = r.category;
+    document.getElementById('fDate').value       = r.date;
+    document.getElementById('fNotes').value      = r.notes || '';
+    openModal('recordModal');
+  }
+
+  document.getElementById('recordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const id = document.getElementById('recordId').value;
+    const body = {
+      amount:   parseFloat(document.getElementById('fAmount').value),
+      type:     document.getElementById('fTypeInput').value,
+      category: document.getElementById('fCategoryInput').value.trim(),
+      date:     document.getElementById('fDate').value,
+      notes:    document.getElementById('fNotes').value.trim() || undefined,
+    };
+
+    try {
+      if (id) {
+        await api('PATCH', `/records/${id}`, body);
+        toast('Record updated');
+      } else {
+        await api('POST', '/records', body);
+        toast('Record created');
+      }
+      closeModal('recordModal');
+      loadRecords(currentPage);
+    } catch (ex) {
+      toast(ex?.error || ex?.errors?.[0]?.msg || 'Save failed', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save';
+    }
+  });
+
+  // ── delete ─────────────────────────────────────────────────────────────────
+  let pendingDeleteId = null;
+  function openDelete(id) {
+    pendingDeleteId = id;
+    openModal('deleteModal');
+  }
+
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+    if (!pendingDeleteId) return;
+    try {
+      await api('DELETE', `/records/${pendingDeleteId}`);
+      toast('Record deleted');
+      closeModal('deleteModal');
+      loadRecords(currentPage);
+    } catch (ex) {
+      toast(ex?.error || 'Delete failed', 'error');
+    }
+    pendingDeleteId = null;
+  });
+
+  loadRecords();
+</script>
+</body>
+</html>

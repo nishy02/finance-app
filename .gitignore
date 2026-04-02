@@ -1,0 +1,6 @@
+node_modules/
+finance-backend/finance.db
+finance-backend/finance.db-shm
+finance-backend/finance.db-wal
+finance-backend/.env
+.env

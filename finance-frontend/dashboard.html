@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — FinanceApp</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Dashboard</h1>
+    <div style="display:flex;gap:10px;align-items:center">
+      <select id="trendYear" class="btn btn-ghost" style="padding:6px 10px"></select>
+      <select id="trendPeriod" class="btn btn-ghost" style="padding:6px 10px">
+        <option value="monthly">Monthly</option>
+        <option value="weekly">Weekly</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Summary stats -->
+  <div class="stat-grid" id="statGrid">
+    <div class="card"><div class="card-title">Total Income</div><div class="card-value green" id="statIncome">—</div></div>
+    <div class="card"><div class="card-title">Total Expenses</div><div class="card-value red" id="statExpenses">—</div></div>
+    <div class="card"><div class="card-title">Net Balance</div><div class="card-value" id="statNet">—</div></div>
+    <div class="card"><div class="card-title">Total Records</div><div class="card-value" id="statCount">—</div></div>
+  </div>
+
+  <div class="charts-grid">
+    <!-- Category breakdown -->
+    <div class="card">
+      <div class="section-title">Category Breakdown</div>
+      <div id="categoryChart"><div class="text-muted" style="font-size:13px">Loading…</div></div>
+    </div>
+
+    <!-- Trends -->
+    <div class="card">
+      <div class="section-title">Income vs Expenses</div>
+      <div id="trendsChart"><div class="text-muted" style="font-size:13px">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- Recent activity -->
+  <div class="card">
+    <div class="section-title">Recent Activity</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Category</th><th>Type</th><th>Amount</th><th>Notes</th><th>By</th>
+          </tr>
+        </thead>
+        <tbody id="recentBody">
+          <tr><td colspan="6" class="text-muted" style="padding:20px;text-align:center">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  if (!requireAuth('analyst')) throw '';
+
+  renderNav();
+
+  const fmt = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Populate year selector
+  const yearSel = document.getElementById('trendYear');
+  const curYear = new Date().getFullYear();
+  for (let y = curYear; y >= curYear - 4; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    yearSel.appendChild(o);
+  }
+
+  async function loadAll() {
+    const year   = yearSel.value;
+    const period = document.getElementById('trendPeriod').value;
+
+    const [summary, cats, trends, recent] = await Promise.all([
+      api('GET', '/dashboard/summary'),
+      api('GET', '/dashboard/by-category'),
+      api('GET', `/dashboard/trends?period=${period}&year=${year}`),
+      api('GET', '/dashboard/recent?limit=10'),
+    ]);
+
+    // ── stats ──────────────────────────────────────────────────────────────
+    document.getElementById('statIncome').textContent   = fmt(summary.summary.total_income);
+    document.getElementById('statExpenses').textContent = fmt(summary.summary.total_expenses);
+    const net = summary.summary.net_balance;
+    const netEl = document.getElementById('statNet');
+    netEl.textContent = fmt(net);
+    netEl.className = 'card-value ' + (net >= 0 ? 'green' : 'red');
+    document.getElementById('statCount').textContent = summary.summary.total_records;
+
+    // ── category chart ─────────────────────────────────────────────────────
+    const catEl = document.getElementById('categoryChart');
+    if (!cats.categories.length) {
+      catEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">📊</div><p>No data yet</p></div>';
+    } else {
+      const maxVal = Math.max(...cats.categories.map(c => c.total));
+      catEl.innerHTML = `<div class="chart-bar-wrap">` +
+        cats.categories.slice(0, 8).map(c => `
+          <div class="chart-bar-row">
+            <div class="chart-bar-label" title="${c.category}">${c.category}</div>
+            <div class="chart-bar-track">
+              <div class="chart-bar-fill" style="width:${(c.total/maxVal*100).toFixed(1)}%;background:${c.type==='income'?'var(--green)':'var(--red)'}"></div>
+            </div>
+            <div class="chart-bar-val">${fmt(c.total)}</div>
+          </div>`).join('') +
+        `</div>`;
+    }
+
+    // ── trends chart ───────────────────────────────────────────────────────
+    const trendEl = document.getElementById('trendsChart');
+    if (!trends.trends.length) {
+      trendEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">📈</div><p>No data for this period</p></div>';
+    } else {
+      // Group by period
+      const byPeriod = {};
+      trends.trends.forEach(t => {
+        if (!byPeriod[t.period]) byPeriod[t.period] = { income: 0, expense: 0 };
+        byPeriod[t.period][t.type] = t.total;
+      });
+      const maxT = Math.max(...Object.values(byPeriod).flatMap(v => [v.income, v.expense]));
+      const label = p => period === 'monthly' ? p.slice(5) : p.split('-W')[1] ? 'W'+p.split('-W')[1] : p;
+
+      trendEl.innerHTML = `<div class="trend-grid">` +
+        Object.entries(byPeriod).map(([p, v]) => `
+          <div class="trend-row">
+            <div class="trend-label">${label(p)}</div>
+            <div class="trend-track">
+              <div class="trend-seg" style="width:${(v.income/maxT*100).toFixed(1)}%;background:var(--green)" title="Income: ${fmt(v.income)}"></div>
+              <div class="trend-seg" style="width:${(v.expense/maxT*100).toFixed(1)}%;background:var(--red)" title="Expense: ${fmt(v.expense)}"></div>
+            </div>
+          </div>`).join('') +
+        `</div>
+        <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--muted)">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--green);border-radius:2px;display:inline-block"></span>Income</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--red);border-radius:2px;display:inline-block"></span>Expense</span>
+        </div>`;
+    }
+
+    // ── recent ─────────────────────────────────────────────────────────────
+    const tbody = document.getElementById('recentBody');
+    if (!recent.records.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state" style="padding:30px;text-align:center"><div class="empty-icon">📋</div><p>No records yet</p></td></tr>';
+    } else {
+      tbody.innerHTML = recent.records.map(r => `
+        <tr>
+          <td>${r.date}</td>
+          <td>${r.category}</td>
+          <td><span class="badge badge-${r.type}">${r.type}</span></td>
+          <td class="${r.type === 'income' ? 'text-green' : 'text-red'}">${fmt(r.amount)}</td>
+          <td class="text-muted">${r.notes || '—'}</td>
+          <td class="text-muted">${r.created_by_name}</td>
+        </tr>`).join('');
+    }
+  }
+
+  yearSel.addEventListener('change', loadAll);
+  document.getElementById('trendPeriod').addEventListener('change', loadAll);
+  loadAll();
+</script>
+</body>
+</html>

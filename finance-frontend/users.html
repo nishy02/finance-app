@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Users — FinanceApp</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>User Management</h1>
+    <button class="btn btn-primary" onclick="openAdd()">+ Add User</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <div class="form-group">
+      <label>Role</label>
+      <select id="fRole">
+        <option value="">All roles</option>
+        <option value="admin">Admin</option>
+        <option value="analyst">Analyst</option>
+        <option value="viewer">Viewer</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="fStatus">
+        <option value="">All statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex:0">
+      <label>&nbsp;</label>
+      <button class="btn btn-primary" onclick="loadUsers(1)">Filter</button>
+    </div>
+    <div class="form-group" style="flex:0">
+      <label>&nbsp;</label>
+      <button class="btn btn-ghost" onclick="clearFilters()">Clear</button>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="usersBody">
+          <tr><td colspan="6" style="padding:30px;text-align:center;color:var(--muted)">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<!-- Add User modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add User</h2>
+      <button class="modal-close" onclick="closeModal('addModal')">×</button>
+    </div>
+    <form id="addForm">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="aName" placeholder="Full name" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="aEmail" placeholder="user@example.com" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="aPassword" placeholder="Min 6 characters" required minlength="6">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="aRole">
+          <option value="viewer">Viewer</option>
+          <option value="analyst">Analyst</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('addModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="addBtn">Create User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit User modal (role + status only) -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h2>Edit User</h2>
+      <button class="modal-close" onclick="closeModal('editModal')">×</button>
+    </div>
+    <form id="editForm">
+      <input type="hidden" id="eId">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="eName" required>
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="eRole">
+          <option value="viewer">Viewer</option>
+          <option value="analyst">Analyst</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="eStatus">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('editModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete confirm -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h2>Delete User</h2>
+      <button class="modal-close" onclick="closeModal('deleteModal')">×</button>
+    </div>
+    <p style="color:var(--muted);font-size:14px">This will permanently delete the user. This cannot be undone.</p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  if (!requireAuth('admin')) throw '';
+  renderNav();
+
+  const me = auth.user();
+  let currentPage = 1;
+  const LIMIT = 20;
+
+  function buildQuery(page) {
+    const p = new URLSearchParams();
+    const role   = document.getElementById('fRole').value;
+    const status = document.getElementById('fStatus').value;
+    if (role)   p.set('role', role);
+    if (status) p.set('status', status);
+    p.set('page', page);
+    p.set('limit', LIMIT);
+    return p.toString();
+  }
+
+  async function loadUsers(page = 1) {
+    currentPage = page;
+    const tbody = document.getElementById('usersBody');
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--muted)">Loading…</td></tr>';
+
+    try {
+      const data = await api('GET', `/users?${buildQuery(page)}`);
+      renderTable(data.users);
+      renderPagination(data.pagination);
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--red)">Failed to load users</td></tr>';
+    }
+  }
+
+  function renderTable(users) {
+    const tbody = document.getElementById('usersBody');
+    if (!users.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">👤</div><p>No users found</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = users.map(u => {
+      const isSelf = u.id === me.id;
+      return `<tr>
+        <td>${u.name} ${isSelf ? '<span class="badge badge-viewer" style="font-size:10px">you</span>' : ''}</td>
+        <td class="text-muted">${u.email}</td>
+        <td><span class="badge badge-${u.role}">${u.role}</span></td>
+        <td><span class="badge badge-${u.status}">${u.status}</span></td>
+        <td class="text-muted">${u.created_at.split('T')[0]}</td>
+        <td>
+          <div class="actions">
+            <button class="btn btn-sm btn-ghost" onclick='openEdit(${JSON.stringify(u)})'>Edit</button>
+            ${!isSelf ? `<button class="btn btn-sm btn-danger" onclick="openDelete(${u.id})">Delete</button>` : ''}
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderPagination({ page, limit, total }) {
+    const pages = Math.ceil(total / limit);
+    const el = document.getElementById('pagination');
+    if (pages <= 1) { el.innerHTML = `<span>${total} user${total !== 1 ? 's' : ''}</span>`; return; }
+    el.innerHTML = `
+      <span>${total} users</span>
+      <button class="btn btn-sm btn-ghost" onclick="loadUsers(${page - 1})" ${page <= 1 ? 'disabled' : ''}>‹ Prev</button>
+      <span>Page ${page} of ${pages}</span>
+      <button class="btn btn-sm btn-ghost" onclick="loadUsers(${page + 1})" ${page >= pages ? 'disabled' : ''}>Next ›</button>
+    `;
+  }
+
+  function clearFilters() {
+    document.getElementById('fRole').value = '';
+    document.getElementById('fStatus').value = '';
+    loadUsers(1);
+  }
+
+  // ── add user ───────────────────────────────────────────────────────────────
+  function openAdd() {
+    document.getElementById('addForm').reset();
+    openModal('addModal');
+  }
+
+  document.getElementById('addForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('addBtn');
+    btn.disabled = true; btn.textContent = 'Creating…';
+    try {
+      await api('POST', '/auth/register', {
+        name:     document.getElementById('aName').value.trim(),
+        email:    document.getElementById('aEmail').value.trim(),
+        password: document.getElementById('aPassword').value,
+        role:     document.getElementById('aRole').value,
+      });
+      toast('User created');
+      closeModal('addModal');
+      loadUsers(currentPage);
+    } catch (ex) {
+      toast(ex?.error || ex?.errors?.[0]?.msg || 'Failed to create user', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Create User';
+    }
+  });
+
+  // ── edit user ──────────────────────────────────────────────────────────────
+  function openEdit(u) {
+    document.getElementById('eId').value     = u.id;
+    document.getElementById('eName').value   = u.name;
+    document.getElementById('eRole').value   = u.role;
+    document.getElementById('eStatus').value = u.status;
+
+    // Prevent self-deactivation: disable status select for own account
+    const statusSel = document.getElementById('eStatus');
+    statusSel.disabled = (u.id === me.id);
+
+    openModal('editModal');
+  }
+
+  document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('eId').value;
+    try {
+      await api('PATCH', `/users/${id}`, {
+        name:   document.getElementById('eName').value.trim(),
+        role:   document.getElementById('eRole').value,
+        status: document.getElementById('eStatus').value,
+      });
+      toast('User updated');
+      closeModal('editModal');
+      loadUsers(currentPage);
+    } catch (ex) {
+      toast(ex?.error || 'Update failed', 'error');
+    }
+  });
+
+  // ── delete user ────────────────────────────────────────────────────────────
+  let pendingDeleteId = null;
+  function openDelete(id) {
+    pendingDeleteId = id;
+    openModal('deleteModal');
+  }
+
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+    if (!pendingDeleteId) return;
+    try {
+      await api('DELETE', `/users/${pendingDeleteId}`);
+      toast('User deleted');
+      closeModal('deleteModal');
+      loadUsers(currentPage);
+    } catch (ex) {
+      toast(ex?.error || 'Delete failed', 'error');
+    }
+    pendingDeleteId = null;
+  });
+
+  loadUsers();
+</script>
+</body>
+</html>

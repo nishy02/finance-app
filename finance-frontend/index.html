@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinanceApp — Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <h1>💰 FinanceApp</h1>
+    <p>Sign in to access your finance dashboard</p>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn btn-primary" id="loginBtn">Sign in</button>
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+
+    <div class="demo-accounts">
+      <p>Demo accounts</p>
+      <button class="demo-btn" onclick="fillDemo('admin@example.com','admin123','admin')">
+        <span>admin@example.com</span>
+        <span class="badge badge-admin">admin</span>
+      </button>
+      <button class="demo-btn" onclick="fillDemo('analyst@example.com','analyst123','analyst')">
+        <span>analyst@example.com</span>
+        <span class="badge badge-analyst">analyst</span>
+      </button>
+      <button class="demo-btn" onclick="fillDemo('viewer@example.com','viewer123','viewer')">
+        <span>viewer@example.com</span>
+        <span class="badge badge-viewer">viewer</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  // Already logged in → redirect
+  if (auth.token()) {
+    location.href = auth.is('analyst') ? 'dashboard.html' : 'records.html';
+  }
+
+  function fillDemo(email, password) {
+    document.getElementById('email').value = email;
+    document.getElementById('password').value = password;
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const err = document.getElementById('errorMsg');
+    err.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+
+    try {
+      const data = await api('POST', '/auth/login', {
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+      });
+      auth.save(data.token, data.user);
+      location.href = auth.is('analyst') ? 'dashboard.html' : 'records.html';
+    } catch (ex) {
+      err.textContent = ex?.error || 'Login failed';
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    }
+  });
+</script>
+</body>
+</html>
