@@ -22,25 +22,28 @@ beforeEach(() => {
 describe('POST /records — creating records', () => {
   const valid = { amount: 1500, type: 'income', category: 'Salary', date: '2024-06-01', notes: 'June pay' };
 
-  it('analyst can create a record and gets 201 with the record back', async () => {
+  it('analyst cannot create a record — 403', async () => {
     const res = await request(app)
       .post('/records')
       .set('Authorization', `Bearer ${analystToken}`)
       .send(valid);
-
-    expect(res.status).toBe(201);
-    expect(res.body.record).toMatchObject({
-      amount: 1500,
-      type: 'income',
-      category: 'Salary',
-      date: '2024-06-01',
-      notes: 'June pay',
-    });
-    expect(res.body.record.id).toBeDefined();
-    expect(res.body.record.created_by).toBe(analyst.id);
+    expect(res.status).toBe(403);
   });
 
-  it('admin can create a record', async () => {
+  it('admin can create a record and gets 201 with the record back', async () => {
+    const res = await request(app)
+      .post('/records')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(valid);
+    expect(res.status).toBe(201);
+    expect(res.body.record).toMatchObject({
+      amount: 1500, type: 'income', category: 'Salary', date: '2024-06-01', notes: 'June pay',
+    });
+    expect(res.body.record.id).toBeDefined();
+    expect(res.body.record.created_by).toBe(admin.id);
+  });
+
+  it('admin can create an expense record', async () => {
     const res = await request(app)
       .post('/records')
       .set('Authorization', `Bearer ${adminToken}`)
@@ -53,7 +56,7 @@ describe('POST /records — creating records', () => {
     const { notes, ...withoutNotes } = valid;
     const res = await request(app)
       .post('/records')
-      .set('Authorization', `Bearer ${analystToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send(withoutNotes);
     expect(res.status).toBe(201);
     expect(res.body.record.notes).toBeNull();
@@ -69,34 +72,34 @@ describe('POST /records — creating records', () => {
 
   it('rejects missing amount — 422', async () => {
     const { amount, ...rest } = valid;
-    const res = await request(app).post('/records').set('Authorization', `Bearer ${analystToken}`).send(rest);
+    const res = await request(app).post('/records').set('Authorization', `Bearer ${adminToken}`).send(rest);
     expect(res.status).toBe(422);
   });
 
   it('rejects zero amount — 422', async () => {
-    const res = await request(app).post('/records').set('Authorization', `Bearer ${analystToken}`).send({ ...valid, amount: 0 });
+    const res = await request(app).post('/records').set('Authorization', `Bearer ${adminToken}`).send({ ...valid, amount: 0 });
     expect(res.status).toBe(422);
   });
 
   it('rejects negative amount — 422', async () => {
-    const res = await request(app).post('/records').set('Authorization', `Bearer ${analystToken}`).send({ ...valid, amount: -50 });
+    const res = await request(app).post('/records').set('Authorization', `Bearer ${adminToken}`).send({ ...valid, amount: -50 });
     expect(res.status).toBe(422);
   });
 
   it('rejects invalid type — 422', async () => {
-    const res = await request(app).post('/records').set('Authorization', `Bearer ${analystToken}`).send({ ...valid, type: 'transfer' });
+    const res = await request(app).post('/records').set('Authorization', `Bearer ${adminToken}`).send({ ...valid, type: 'transfer' });
     expect(res.status).toBe(422);
   });
 
   it('rejects missing category — 422', async () => {
     const { category, ...rest } = valid;
-    const res = await request(app).post('/records').set('Authorization', `Bearer ${analystToken}`).send(rest);
+    const res = await request(app).post('/records').set('Authorization', `Bearer ${adminToken}`).send(rest);
     expect(res.status).toBe(422);
   });
 
   it('rejects missing date — 422', async () => {
     const { date, ...rest } = valid;
-    const res = await request(app).post('/records').set('Authorization', `Bearer ${analystToken}`).send(rest);
+    const res = await request(app).post('/records').set('Authorization', `Bearer ${adminToken}`).send(rest);
     expect(res.status).toBe(422);
   });
 
@@ -179,64 +182,63 @@ describe('PATCH /records/:id — updating records', () => {
     record = seedRecord(db, { amount: 300, type: 'expense', category: 'Food', date: '2024-03-01', notes: 'Groceries', createdBy: admin.id });
   });
 
-  it('analyst can update amount', async () => {
+  it('analyst cannot update a record — 403', async () => {
     const res = await request(app)
       .patch(`/records/${record.id}`)
       .set('Authorization', `Bearer ${analystToken}`)
+      .send({ amount: 450 });
+    expect(res.status).toBe(403);
+  });
+
+  it('admin can update amount', async () => {
+    const res = await request(app)
+      .patch(`/records/${record.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ amount: 450 });
     expect(res.status).toBe(200);
     expect(res.body.record.amount).toBe(450);
   });
 
-  it('analyst can update type', async () => {
+  it('admin can update type', async () => {
     const res = await request(app)
       .patch(`/records/${record.id}`)
-      .set('Authorization', `Bearer ${analystToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ type: 'income' });
     expect(res.status).toBe(200);
     expect(res.body.record.type).toBe('income');
   });
 
-  it('analyst can update category', async () => {
+  it('admin can update category', async () => {
     const res = await request(app)
       .patch(`/records/${record.id}`)
-      .set('Authorization', `Bearer ${analystToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ category: 'Transport' });
     expect(res.status).toBe(200);
     expect(res.body.record.category).toBe('Transport');
   });
 
-  it('analyst can update date', async () => {
+  it('admin can update date', async () => {
     const res = await request(app)
       .patch(`/records/${record.id}`)
-      .set('Authorization', `Bearer ${analystToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ date: '2024-09-15' });
     expect(res.status).toBe(200);
     expect(res.body.record.date).toBe('2024-09-15');
   });
 
-  it('analyst can update notes', async () => {
+  it('admin can update notes', async () => {
     const res = await request(app)
       .patch(`/records/${record.id}`)
-      .set('Authorization', `Bearer ${analystToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ notes: 'Updated note' });
     expect(res.status).toBe(200);
     expect(res.body.record.notes).toBe('Updated note');
   });
 
-  it('admin can update a record', async () => {
-    const res = await request(app)
-      .patch(`/records/${record.id}`)
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ amount: 999, category: 'Utilities' });
-    expect(res.status).toBe(200);
-    expect(res.body.record).toMatchObject({ amount: 999, category: 'Utilities' });
-  });
-
   it('unmentioned fields are preserved after partial update', async () => {
     await request(app)
       .patch(`/records/${record.id}`)
-      .set('Authorization', `Bearer ${analystToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ amount: 999 });
     const res = await request(app).get(`/records/${record.id}`).set('Authorization', `Bearer ${viewerToken}`);
     expect(res.body.record.category).toBe('Food');
@@ -254,7 +256,7 @@ describe('PATCH /records/:id — updating records', () => {
   it('returns 400 when body has no updatable fields', async () => {
     const res = await request(app)
       .patch(`/records/${record.id}`)
-      .set('Authorization', `Bearer ${analystToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({});
     expect(res.status).toBe(400);
   });
@@ -262,7 +264,7 @@ describe('PATCH /records/:id — updating records', () => {
   it('returns 404 for non-existent record', async () => {
     const res = await request(app)
       .patch('/records/9999')
-      .set('Authorization', `Bearer ${analystToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ amount: 100 });
     expect(res.status).toBe(404);
   });
@@ -271,7 +273,7 @@ describe('PATCH /records/:id — updating records', () => {
     db.prepare("UPDATE financial_records SET deleted_at = datetime('now') WHERE id = ?").run(record.id);
     const res = await request(app)
       .patch(`/records/${record.id}`)
-      .set('Authorization', `Bearer ${analystToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ amount: 100 });
     expect(res.status).toBe(404);
   });

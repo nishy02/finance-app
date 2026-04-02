@@ -50,10 +50,10 @@ router.get('/:id', param('id').isInt(), (req, res) => {
   res.json({ record });
 });
 
-// POST /records — analyst and admin only
+// POST /records — admin only
 router.post(
   '/',
-  requireRole('analyst'),
+  requireRole('admin'),
   [
     body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number'),
     body('type').isIn(['income', 'expense']).withMessage('Type must be income or expense'),
@@ -79,10 +79,10 @@ router.post(
   }
 );
 
-// PATCH /records/:id — analyst and admin only
+// PATCH /records/:id — admin only
 router.patch(
   '/:id',
-  requireRole('analyst'),
+  requireRole('admin'),
   [
     param('id').isInt(),
     body('amount').optional().isFloat({ gt: 0 }),

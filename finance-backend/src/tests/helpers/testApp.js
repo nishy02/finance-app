@@ -193,7 +193,7 @@ function buildApp(db) {
     res.json({ record });
   });
 
-  recordsRouter.post('/', requireRole('analyst'), (req, res) => {
+  recordsRouter.post('/', requireRole('admin'), (req, res) => {
     const { amount, type, category, date, notes } = req.body;
     if (!amount || amount <= 0) return res.status(422).json({ errors: [{ msg: 'Amount must be positive' }] });
     if (!['income', 'expense'].includes(type)) return res.status(422).json({ errors: [{ msg: 'Invalid type' }] });
@@ -203,7 +203,7 @@ function buildApp(db) {
     res.status(201).json({ record: db.prepare('SELECT * FROM financial_records WHERE id = ?').get(r.lastInsertRowid) });
   });
 
-  recordsRouter.patch('/:id', requireRole('analyst'), (req, res) => {
+  recordsRouter.patch('/:id', requireRole('admin'), (req, res) => {
     const record = db.prepare('SELECT id FROM financial_records WHERE id = ? AND deleted_at IS NULL').get(req.params.id);
     if (!record) return res.status(404).json({ error: 'Record not found' });
     const fields = [], params = [];

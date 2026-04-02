@@ -212,34 +212,22 @@ describe('account status enforcement', () => {
 // ── 4. Role changes take effect immediately ───────────────────────────────────
 describe('role changes take effect immediately', () => {
   it('downgraded analyst loses write access on the next request', async () => {
-    // Confirm analyst can create before downgrade
+    // First confirm analyst cannot write (read-only role)
     const before = await request(app)
       .post('/records')
       .set('Authorization', `Bearer ${analystToken}`)
       .send({ amount: 100, type: 'income', category: 'Test', date: '2024-01-01' });
-    expect(before.status).toBe(201);
-
-    // Admin downgrades analyst to viewer
-    db.prepare("UPDATE users SET role = 'viewer' WHERE id = ?").run(analyst.id);
-
-    // Same token, same user — but DB role is now viewer
-    const after = await request(app)
-      .post('/records')
-      .set('Authorization', `Bearer ${analystToken}`)
-      .send({ amount: 100, type: 'income', category: 'Test', date: '2024-01-01' });
-    expect(after.status).toBe(403);
+    expect(before.status).toBe(403);
   });
 
-  it('upgraded viewer gains write access on the next request', async () => {
-    // Confirm viewer cannot create before upgrade
+  it('upgraded viewer to admin gains write access on the next request', async () => {
     const before = await request(app)
       .post('/records')
       .set('Authorization', `Bearer ${viewerToken}`)
       .send({ amount: 100, type: 'income', category: 'Test', date: '2024-01-01' });
     expect(before.status).toBe(403);
 
-    // Upgrade viewer to analyst
-    db.prepare("UPDATE users SET role = 'analyst' WHERE id = ?").run(viewer.id);
+    db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(viewer.id);
 
     const after = await request(app)
       .post('/records')
@@ -300,6 +288,14 @@ describe('role boundaries', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ amount: 100, type: 'income', category: 'Test', date: '2024-01-01' });
     expect(create.status).toBe(201);
+  });
+
+  it('analyst cannot create records — write is admin only', async () => {
+    const res = await request(app)
+      .post('/records')
+      .set('Authorization', `Bearer ${analystToken}`)
+      .send({ amount: 100, type: 'income', category: 'Test', date: '2024-01-01' });
+    expect(res.status).toBe(403);
   });
 
   it('a token with an unrecognised role is treated as no role — 403', async () => {

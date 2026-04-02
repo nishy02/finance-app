@@ -5,8 +5,8 @@
  *  --------------------------------|--------|---------|------
  *  GET  /records                   |  ✓     |  ✓      |  ✓
  *  GET  /records/:id               |  ✓     |  ✓      |  ✓
- *  POST /records                   |  ✗     |  ✓      |  ✓
- *  PATCH /records/:id              |  ✗     |  ✓      |  ✓
+ *  POST /records                   |  ✗     |  ✗      |  ✓
+ *  PATCH /records/:id              |  ✗     |  ✗      |  ✓
  *  DELETE /records/:id             |  ✗     |  ✗      |  ✓
  *  GET  /dashboard/*               |  ✗     |  ✓      |  ✓
  *  GET  /users                     |  ✗     |  ✗      |  ✓
@@ -124,21 +124,20 @@ describe('analyst role', () => {
     expect((await request(app).get(`/records/${recordId}`).set('Authorization', `Bearer ${analystToken}`)).status).toBe(200);
   });
 
-  it('can create a record', async () => {
+  it('cannot create a record — 403', async () => {
     const res = await request(app)
       .post('/records')
       .set('Authorization', `Bearer ${analystToken}`)
       .send({ amount: 250, type: 'expense', category: 'Utilities', date: '2024-04-01' });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(403);
   });
 
-  it('can update a record', async () => {
+  it('cannot update a record — 403', async () => {
     const res = await request(app)
       .patch(`/records/${recordId}`)
       .set('Authorization', `Bearer ${analystToken}`)
       .send({ amount: 999 });
-    expect(res.status).toBe(200);
-    expect(res.body.record.amount).toBe(999);
+    expect(res.status).toBe(403);
   });
 
   it('cannot delete a record — 403', async () => {
