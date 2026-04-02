@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up — FinanceApp</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card" style="max-width:440px">
+    <h1>💰 FinanceApp</h1>
+    <p>Create your account</p>
+
+    <form id="registerForm">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="name" placeholder="Your name" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Min 6 characters" required minlength="6">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="role">
+          <option value="viewer">Viewer — can view records only</option>
+          <option value="analyst">Analyst — can view records and dashboard, create &amp; edit records</option>
+          <option value="admin">Admin — full access including user management</option>
+        </select>
+        <div style="margin-top:6px;font-size:12px;color:var(--muted)" id="roleHint"></div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="registerBtn">Create Account</button>
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+
+    <div style="margin-top:20px;text-align:center;font-size:13px;color:var(--muted)">
+      Already have an account? <a href="index.html">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  if (auth.token()) {
+    location.href = auth.is('analyst') ? 'dashboard.html' : 'records.html';
+  }
+
+  const hints = {
+    viewer:  '👁  Read-only access to financial records.',
+    analyst: '📊 Can view dashboard analytics and create or edit records.',
+    admin:   '🔑 Full access — manage users, records, and all settings.',
+  };
+
+  const roleEl = document.getElementById('role');
+  const hintEl = document.getElementById('roleHint');
+
+  function updateHint() { hintEl.textContent = hints[roleEl.value]; }
+  roleEl.addEventListener('change', updateHint);
+  updateHint();
+
+  document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('registerBtn');
+    const err = document.getElementById('errorMsg');
+    err.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Creating account…';
+
+    try {
+      await api('POST', '/auth/register', {
+        name:     document.getElementById('name').value.trim(),
+        email:    document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+        role:     roleEl.value,
+      });
+
+      // Auto-login after register
+      const data = await api('POST', '/auth/login', {
+        email:    document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+      });
+
+      auth.save(data.token, data.user);
+      location.href = auth.is('analyst') ? 'dashboard.html' : 'records.html';
+    } catch (ex) {
+      err.textContent = ex?.error || ex?.errors?.[0]?.msg || 'Registration failed';
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+    }
+  });
+</script>
+</body>
+</html>

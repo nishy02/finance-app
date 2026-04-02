@@ -27,7 +27,7 @@ async function api(method, path, body) {
   if (body) opts.body = JSON.stringify(body);
 
   const res = await fetch(API + path, opts);
-  if (res.status === 401) { auth.clear(); location.href = '/index.html'; return; }
+  if (res.status === 401) { auth.clear(); location.href = 'index.html'; return; }
   const data = res.status === 204 ? null : await res.json();
   if (!res.ok) throw data;
   return data;
