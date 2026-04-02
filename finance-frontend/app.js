@@ -43,14 +43,17 @@ function renderNav() {
 
   const pages = [
     { href: 'dashboard.html', label: 'Dashboard', minRole: 'analyst' },
-    { href: 'records.html',   label: 'Records',   minRole: 'viewer' },
-    { href: 'users.html',     label: 'Users',     minRole: 'admin' },
+    { href: 'records.html',   label: 'Records',   minRole: 'viewer'  },
+    { href: 'users.html',     label: 'Users',     minRole: 'admin'   },
   ];
 
   const current = location.pathname.split('/').pop();
 
   nav.innerHTML = `
-    <div class="nav-brand">💰 FinanceApp</div>
+    <div class="nav-brand">
+      <div class="nav-brand-mark">💰</div>
+      FinanceApp
+    </div>
     <div class="nav-links">
       ${pages.filter(p => auth.is(p.minRole)).map(p => `
         <a href="${p.href}" class="${current === p.href ? 'active' : ''}">${p.label}</a>
@@ -58,8 +61,8 @@ function renderNav() {
     </div>
     <div class="nav-user">
       <span class="badge badge-${user.role}">${user.role}</span>
-      <span>${user.name}</span>
-      <button onclick="logout()" class="btn btn-sm btn-ghost">Logout</button>
+      <span style="color:var(--text)">${user.name}</span>
+      <button onclick="logout()" class="btn btn-sm btn-ghost">Sign out</button>
     </div>
   `;
 }
@@ -69,28 +72,32 @@ function logout() {
   location.href = 'index.html';
 }
 
-// ── guard: redirect to login if not authenticated ─────────────────────────────
+// ── guard ─────────────────────────────────────────────────────────────────────
 function requireAuth(minRole) {
   if (!auth.token()) { location.href = 'index.html'; return false; }
   if (minRole && !auth.is(minRole)) {
-    document.body.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">🔒</div>
-      <p>You don't have permission to view this page.</p>
-      <a href="dashboard.html" class="btn btn-primary">Go to Dashboard</a>
-    </div>`;
+    document.body.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;z-index:1">
+        <div class="empty-state">
+          <div class="empty-icon">🔒</div>
+          <p style="font-size:15px;color:var(--text);margin-bottom:6px;font-weight:600">Access restricted</p>
+          <p style="margin-bottom:20px">You don't have permission to view this page.</p>
+          <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
+        </div>
+      </div>`;
     return false;
   }
   return true;
 }
 
-// ── toast notifications ───────────────────────────────────────────────────────
+// ── toast ─────────────────────────────────────────────────────────────────────
 function toast(msg, type = 'success') {
   const t = document.createElement('div');
   t.className = `toast toast-${type}`;
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.classList.add('show'), 10);
-  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3200);
 }
 
 // ── modal helpers ─────────────────────────────────────────────────────────────

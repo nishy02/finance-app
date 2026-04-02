@@ -5,56 +5,109 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — FinanceApp</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    .dash-controls {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .dash-controls select {
+      width: auto; padding: 6px 12px; font-size: 12.5px;
+      background: var(--surface); border: 1px solid var(--border2);
+      color: var(--text2); cursor: pointer;
+    }
+    .dash-controls select:focus { color: var(--text); }
+
+    .legend {
+      display: flex; gap: 14px; margin-top: 12px;
+      font-size: 11.5px; color: var(--text3);
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-dot {
+      width: 8px; height: 8px; border-radius: 2px; display: inline-block;
+    }
+
+    .recent-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--text3);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 9px;
+      font-family: var(--mono);
+    }
+
+    .stat-change {
+      font-size: 11.5px; font-family: var(--mono);
+      margin-top: 4px; color: var(--text3);
+    }
+  </style>
 </head>
 <body>
 <nav id="nav"></nav>
 
 <div class="page">
   <div class="page-header">
-    <h1>Dashboard</h1>
-    <div style="display:flex;gap:10px;align-items:center">
-      <select id="trendYear" class="btn btn-ghost" style="padding:6px 10px"></select>
-      <select id="trendPeriod" class="btn btn-ghost" style="padding:6px 10px">
+    <div>
+      <h1>Dashboard</h1>
+      <p style="color:var(--text2);font-size:13px;margin-top:2px">Financial overview at a glance</p>
+    </div>
+    <div class="dash-controls">
+      <select id="trendYear"></select>
+      <select id="trendPeriod">
         <option value="monthly">Monthly</option>
         <option value="weekly">Weekly</option>
       </select>
     </div>
   </div>
 
-  <!-- Summary stats -->
+  <!-- Stats -->
   <div class="stat-grid" id="statGrid">
-    <div class="card"><div class="card-title">Total Income</div><div class="card-value green" id="statIncome">—</div></div>
-    <div class="card"><div class="card-title">Total Expenses</div><div class="card-value red" id="statExpenses">—</div></div>
-    <div class="card"><div class="card-title">Net Balance</div><div class="card-value" id="statNet">—</div></div>
-    <div class="card"><div class="card-title">Total Records</div><div class="card-value" id="statCount">—</div></div>
+    <div class="card">
+      <div class="card-title">Total Income</div>
+      <div class="card-value green" id="statIncome">—</div>
+      <div class="stat-change" id="statIncomeCount"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Total Expenses</div>
+      <div class="card-value red" id="statExpenses">—</div>
+      <div class="stat-change" id="statExpensesCount"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Net Balance</div>
+      <div class="card-value" id="statNet">—</div>
+      <div class="stat-change" id="statNetLabel"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Total Records</div>
+      <div class="card-value" id="statCount" style="color:var(--accent2)">—</div>
+      <div class="stat-change">all time</div>
+    </div>
   </div>
 
   <div class="charts-grid">
-    <!-- Category breakdown -->
     <div class="card">
       <div class="section-title">Category Breakdown</div>
-      <div id="categoryChart"><div class="text-muted" style="font-size:13px">Loading…</div></div>
+      <div id="categoryChart"><div class="text-muted" style="font-size:12px;color:var(--text3)">Loading…</div></div>
     </div>
-
-    <!-- Trends -->
     <div class="card">
       <div class="section-title">Income vs Expenses</div>
-      <div id="trendsChart"><div class="text-muted" style="font-size:13px">Loading…</div></div>
+      <div id="trendsChart"><div class="text-muted" style="font-size:12px;color:var(--text3)">Loading…</div></div>
     </div>
   </div>
 
   <!-- Recent activity -->
-  <div class="card">
-    <div class="section-title">Recent Activity</div>
+  <div class="table-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--border)">
+      <div class="section-title" style="margin:0">Recent Activity</div>
+      <a href="records.html" style="font-size:12px;color:var(--accent2)">View all →</a>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Date</th><th>Category</th><th>Type</th><th>Amount</th><th>Notes</th><th>By</th>
+            <th>Date</th><th>Category</th><th>Type</th>
+            <th>Amount</th><th>Notes</th><th>By</th>
           </tr>
         </thead>
         <tbody id="recentBody">
-          <tr><td colspan="6" class="text-muted" style="padding:20px;text-align:center">Loading…</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:28px;color:var(--text3)">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -64,12 +117,10 @@
 <script src="app.js"></script>
 <script>
   if (!requireAuth('analyst')) throw '';
-
   renderNav();
 
   const fmt = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // Populate year selector
   const yearSel = document.getElementById('trendYear');
   const curYear = new Date().getFullYear();
   for (let y = curYear; y >= curYear - 4; y--) {
@@ -89,19 +140,23 @@
       api('GET', '/dashboard/recent?limit=10'),
     ]);
 
-    // ── stats ──────────────────────────────────────────────────────────────
+    // Stats
     document.getElementById('statIncome').textContent   = fmt(summary.summary.total_income);
     document.getElementById('statExpenses').textContent = fmt(summary.summary.total_expenses);
+
     const net = summary.summary.net_balance;
     const netEl = document.getElementById('statNet');
     netEl.textContent = fmt(net);
-    netEl.className = 'card-value ' + (net >= 0 ? 'green' : 'red');
+    netEl.className   = 'card-value ' + (net >= 0 ? 'green' : 'red');
+    document.getElementById('statNetLabel').textContent = net >= 0 ? '↑ surplus' : '↓ deficit';
+    document.getElementById('statNetLabel').style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+
     document.getElementById('statCount').textContent = summary.summary.total_records;
 
-    // ── category chart ─────────────────────────────────────────────────────
+    // Category chart
     const catEl = document.getElementById('categoryChart');
     if (!cats.categories.length) {
-      catEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">📊</div><p>No data yet</p></div>';
+      catEl.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-icon">📊</div><p>No data yet</p></div>';
     } else {
       const maxVal = Math.max(...cats.categories.map(c => c.total));
       catEl.innerHTML = `<div class="chart-bar-wrap">` +
@@ -116,12 +171,11 @@
         `</div>`;
     }
 
-    // ── trends chart ───────────────────────────────────────────────────────
+    // Trends chart
     const trendEl = document.getElementById('trendsChart');
     if (!trends.trends.length) {
-      trendEl.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">📈</div><p>No data for this period</p></div>';
+      trendEl.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-icon">📈</div><p>No data for this period</p></div>';
     } else {
-      // Group by period
       const byPeriod = {};
       trends.trends.forEach(t => {
         if (!byPeriod[t.period]) byPeriod[t.period] = { income: 0, expense: 0 };
@@ -140,25 +194,25 @@
             </div>
           </div>`).join('') +
         `</div>
-        <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--muted)">
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--green);border-radius:2px;display:inline-block"></span>Income</span>
-          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--red);border-radius:2px;display:inline-block"></span>Expense</span>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>Income</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Expense</div>
         </div>`;
     }
 
-    // ── recent ─────────────────────────────────────────────────────────────
+    // Recent
     const tbody = document.getElementById('recentBody');
     if (!recent.records.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty-state" style="padding:30px;text-align:center"><div class="empty-icon">📋</div><p>No records yet</p></td></tr>';
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><p>No records yet</p></div></td></tr>`;
     } else {
       tbody.innerHTML = recent.records.map(r => `
         <tr>
-          <td>${r.date}</td>
-          <td>${r.category}</td>
+          <td style="color:var(--text2);font-family:var(--mono);font-size:12.5px">${r.date}</td>
+          <td style="font-weight:500">${r.category}</td>
           <td><span class="badge badge-${r.type}">${r.type}</span></td>
           <td class="${r.type === 'income' ? 'text-green' : 'text-red'}">${fmt(r.amount)}</td>
-          <td class="text-muted">${r.notes || '—'}</td>
-          <td class="text-muted">${r.created_by_name}</td>
+          <td class="text-muted" style="font-size:12.5px">${r.notes || '—'}</td>
+          <td class="text-muted" style="font-size:12px">${r.created_by_name}</td>
         </tr>`).join('');
     }
   }

@@ -11,7 +11,10 @@
 
 <div class="page">
   <div class="page-header">
-    <h1>Financial Records</h1>
+    <div>
+      <h1>Financial Records</h1>
+      <p style="color:var(--text2);font-size:13px;margin-top:2px">Track all income and expense entries</p>
+    </div>
     <button class="btn btn-primary" id="addBtn" style="display:none" onclick="openAdd()">+ Add Record</button>
   </div>
 
@@ -47,17 +50,17 @@
     </div>
   </div>
 
-  <!-- Table -->
   <div class="table-card">
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Notes</th><th id="actionsHeader"></th>
+            <th>Date</th><th>Type</th><th>Category</th>
+            <th>Amount</th><th>Notes</th><th id="actionsHeader"></th>
           </tr>
         </thead>
         <tbody id="recordsBody">
-          <tr><td colspan="6" style="padding:30px;text-align:center;color:var(--muted)">Loading…</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -103,7 +106,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="closeModal('recordModal')">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="saveBtn">Save</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save record</button>
       </div>
     </form>
   </div>
@@ -116,10 +119,12 @@
       <h2>Delete Record</h2>
       <button class="modal-close" onclick="closeModal('deleteModal')">×</button>
     </div>
-    <p style="color:var(--muted);font-size:14px">This record will be soft-deleted and removed from all views. This cannot be undone.</p>
+    <p style="color:var(--text2);font-size:13.5px;line-height:1.7">
+      This record will be permanently removed from all views. This action cannot be undone.
+    </p>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('deleteModal')">Cancel</button>
-      <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn">Delete record</button>
     </div>
   </div>
 </div>
@@ -136,7 +141,6 @@
   let currentPage = 1;
   const LIMIT = 15;
 
-  // Show add button and actions column for analysts+
   if (canWrite) document.getElementById('addBtn').style.display = '';
   if (canWrite || canDelete) document.getElementById('actionsHeader').textContent = 'Actions';
 
@@ -158,32 +162,30 @@
   async function loadRecords(page = 1) {
     currentPage = page;
     const tbody = document.getElementById('recordsBody');
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--muted)">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">Loading…</td></tr>';
 
     try {
       const data = await api('GET', `/records?${buildQuery(page)}`);
       renderTable(data.records);
       renderPagination(data.pagination);
     } catch {
-      tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--red)">Failed to load records</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--red)">Failed to load records</td></tr>';
     }
   }
 
   function renderTable(records) {
     const tbody = document.getElementById('recordsBody');
     if (!records.length) {
-      tbody.innerHTML = `<tr><td colspan="6">
-        <div class="empty-state"><div class="empty-icon">📋</div><p>No records found</p></div>
-      </td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><p>No records found</p></div></td></tr>`;
       return;
     }
     tbody.innerHTML = records.map(r => `
       <tr>
-        <td>${r.date}</td>
+        <td style="color:var(--text2);font-family:var(--mono);font-size:12.5px">${r.date}</td>
         <td><span class="badge badge-${r.type}">${r.type}</span></td>
-        <td>${r.category}</td>
+        <td style="font-weight:500">${r.category}</td>
         <td class="${r.type === 'income' ? 'text-green' : 'text-red'}">${fmt(r.amount)}</td>
-        <td class="text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notes || '—'}</td>
+        <td class="text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px">${r.notes || '—'}</td>
         <td>
           <div class="actions">
             ${canWrite  ? `<button class="btn btn-sm btn-ghost" onclick="openEdit(${JSON.stringify(r).replace(/"/g,'&quot;')})">Edit</button>` : ''}
@@ -196,24 +198,20 @@
   function renderPagination({ page, limit, total }) {
     const pages = Math.ceil(total / limit);
     const el = document.getElementById('pagination');
-    if (pages <= 1) { el.innerHTML = `<span>${total} record${total !== 1 ? 's' : ''}</span>`; return; }
+    if (pages <= 1) { el.innerHTML = `<span style="color:var(--text3)">${total} record${total !== 1 ? 's' : ''}</span>`; return; }
     el.innerHTML = `
-      <span>${total} records</span>
+      <span style="color:var(--text3)">${total} records</span>
       <button class="btn btn-sm btn-ghost" onclick="loadRecords(${page - 1})" ${page <= 1 ? 'disabled' : ''}>‹ Prev</button>
-      <span>Page ${page} of ${pages}</span>
+      <span style="color:var(--text2);font-family:var(--mono);font-size:12px">Page ${page} / ${pages}</span>
       <button class="btn btn-sm btn-ghost" onclick="loadRecords(${page + 1})" ${page >= pages ? 'disabled' : ''}>Next ›</button>
     `;
   }
 
   function clearFilters() {
-    ['fType','fCategory','fFrom','fTo'].forEach(id => {
-      const el = document.getElementById(id);
-      el.tagName === 'SELECT' ? (el.value = '') : (el.value = '');
-    });
+    ['fType','fCategory','fFrom','fTo'].forEach(id => { document.getElementById(id).value = ''; });
     loadRecords(1);
   }
 
-  // ── add / edit ─────────────────────────────────────────────────────────────
   function openAdd() {
     document.getElementById('modalTitle').textContent = 'Add Record';
     document.getElementById('recordId').value = '';
@@ -224,20 +222,19 @@
 
   function openEdit(r) {
     document.getElementById('modalTitle').textContent = 'Edit Record';
-    document.getElementById('recordId').value    = r.id;
-    document.getElementById('fAmount').value     = r.amount;
-    document.getElementById('fTypeInput').value  = r.type;
-    document.getElementById('fCategoryInput').value = r.category;
-    document.getElementById('fDate').value       = r.date;
-    document.getElementById('fNotes').value      = r.notes || '';
+    document.getElementById('recordId').value        = r.id;
+    document.getElementById('fAmount').value         = r.amount;
+    document.getElementById('fTypeInput').value      = r.type;
+    document.getElementById('fCategoryInput').value  = r.category;
+    document.getElementById('fDate').value           = r.date;
+    document.getElementById('fNotes').value          = r.notes || '';
     openModal('recordModal');
   }
 
   document.getElementById('recordForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('saveBtn');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
+    btn.disabled = true; btn.textContent = 'Saving…';
 
     const id = document.getElementById('recordId').value;
     const body = {
@@ -249,29 +246,19 @@
     };
 
     try {
-      if (id) {
-        await api('PATCH', `/records/${id}`, body);
-        toast('Record updated');
-      } else {
-        await api('POST', '/records', body);
-        toast('Record created');
-      }
+      if (id) { await api('PATCH', `/records/${id}`, body); toast('Record updated'); }
+      else    { await api('POST', '/records', body);        toast('Record created'); }
       closeModal('recordModal');
       loadRecords(currentPage);
     } catch (ex) {
       toast(ex?.error || ex?.errors?.[0]?.msg || 'Save failed', 'error');
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Save';
+      btn.disabled = false; btn.textContent = 'Save record';
     }
   });
 
-  // ── delete ─────────────────────────────────────────────────────────────────
   let pendingDeleteId = null;
-  function openDelete(id) {
-    pendingDeleteId = id;
-    openModal('deleteModal');
-  }
+  function openDelete(id) { pendingDeleteId = id; openModal('deleteModal'); }
 
   document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
     if (!pendingDeleteId) return;
