@@ -11,7 +11,3 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 24h
-    disk:
-      name: sqlite-data
-      mountPath: /data
-      sizeGB: 1

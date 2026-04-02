@@ -3,10 +3,11 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
-const dbPath = process.env.DB_PATH || './finance.db';
+// On Render free tier there's no persistent disk — store DB in the project dir
+const dbPath = process.env.DB_PATH || path.join(__dirname, '../../finance.db');
 const resolvedPath = path.resolve(dbPath);
 
-// Ensure the directory exists (needed on Render where /data may not pre-exist)
+// Ensure parent directory exists
 const dbDir = path.dirname(resolvedPath);
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });

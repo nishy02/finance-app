@@ -5,7 +5,7 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "start:prod": "NODE_ENV=production DB_PATH=/data/finance.db node src/app.js",
+    "start:prod": "NODE_ENV=production node src/app.js",
     "dev": "nodemon src/app.js",
     "seed": "node src/db/seed.js",
     "test": "jest --runInBand --forceExit"
