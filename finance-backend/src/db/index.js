@@ -1,19 +1,9 @@
 const Database = require('better-sqlite3');
 const path = require('path');
-const fs = require('fs');
 require('dotenv').config();
 
-// On Render free tier there's no persistent disk — store DB in the project dir
 const dbPath = process.env.DB_PATH || path.join(__dirname, '../../finance.db');
-const resolvedPath = path.resolve(dbPath);
-
-// Ensure parent directory exists
-const dbDir = path.dirname(resolvedPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-const db = new Database(resolvedPath);
+const db = new Database(path.resolve(dbPath));
 
 // Enable WAL mode for better performance
 db.pragma('journal_mode = WAL');
