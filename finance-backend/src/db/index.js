@@ -1,9 +1,18 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const dbPath = process.env.DB_PATH || './finance.db';
-const db = new Database(path.resolve(dbPath));
+const resolvedPath = path.resolve(dbPath);
+
+// Ensure the directory exists (needed on Render where /data may not pre-exist)
+const dbDir = path.dirname(resolvedPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const db = new Database(resolvedPath);
 
 // Enable WAL mode for better performance
 db.pragma('journal_mode = WAL');
